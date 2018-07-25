@@ -31,6 +31,7 @@ class TestKramdown < JekyllUnitTest
 
       @config = Jekyll.configuration(@config)
       @markdown = Converters::Markdown.new(@config)
+      FileUtils.rm_rf(@markdown.send(:cache_dir))
       @markdown.setup
     end
 
