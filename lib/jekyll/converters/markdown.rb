@@ -74,7 +74,7 @@ module Jekyll
       def convert(content)
         setup
         hash = Digest::SHA2.hexdigest(content)
-        return cached hash if cached? hash
+        return cached(hash) if cached?(hash)
         rendered = @parser.convert(content)
         cache(hash, rendered)
         rendered
