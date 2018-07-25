@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "digest"
+
 module Jekyll
   module Converters
     class Markdown < Converter
@@ -18,6 +20,7 @@ module Jekyll
           )
           raise Errors::FatalException, "Bailing out; invalid Markdown processor."
         end
+        FileUtils.mkdir_p(cache_dir)
 
         @setup = true
       end
@@ -70,10 +73,35 @@ module Jekyll
 
       def convert(content)
         setup
-        @parser.convert(content)
+        hash = Digest::SHA2.hexdigest(content)
+        return cached hash if cached? hash
+        rendered = @parser.convert(content)
+        cache(hash, rendered)
+        rendered
       end
 
       private
+
+      def cache(hash, rendered)
+        File.write(cache_path(hash), rendered)
+      end
+
+      def cached?(hash)
+        File.exist?(cache_path(hash))
+      end
+
+      def cached(hash)
+        File.read(cache_path(hash))
+      end
+
+      def cache_path(hash)
+        File.join(cache_dir, hash.to_s)
+      end
+
+      def cache_dir
+        @cache_dir ||= File.join(@config["source"], ".jekyll-cache", "jekyll", \
+                                 "converters", "markdown")
+      end
 
       def custom_processor
         converter_name = @config["markdown"]
