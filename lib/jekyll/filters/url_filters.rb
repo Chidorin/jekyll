@@ -8,16 +8,20 @@ module Jekyll
       # input - the URL to make absolute.
       #
       # Returns the absolute URL as a String.
+      # rubocop:disable Metrics/AbcSize
       def absolute_url(input)
         return if input.nil?
         input = input.url if input.respond_to?(:url)
-        return input if Addressable::URI.parse(input.to_s).absolute?
-        site = @context.registers[:site]
-        return relative_url(input) if site.config["url"].nil?
-        Addressable::URI.parse(
-          site.config["url"].to_s + relative_url(input)
-        ).normalize.to_s
+        cache.getset("absolute #{input}") do
+          return input if Addressable::URI.parse(input.to_s).absolute?
+          site = @context.registers[:site]
+          return relative_url(input) if site.config["url"].nil?
+          Addressable::URI.parse(
+            site.config["url"].to_s + relative_url(input)
+          ).normalize.to_s
+        end
       end
+      # rubocop:enable Metrics/AbcSize
 
       # Produces a URL relative to the domain root based on site.baseurl
       # unless it is already an absolute url with an authority (host).
@@ -28,12 +32,14 @@ module Jekyll
       def relative_url(input)
         return if input.nil?
         input = input.url if input.respond_to?(:url)
-        return input if Addressable::URI.parse(input.to_s).absolute?
+        cache.getset("relative #{input}") do
+          return input if Addressable::URI.parse(input.to_s).absolute?
 
-        parts = [sanitized_baseurl, input]
-        Addressable::URI.parse(
-          parts.compact.map { |part| ensure_leading_slash(part.to_s) }.join
-        ).normalize.to_s
+          parts = [sanitized_baseurl, input]
+          Addressable::URI.parse(
+            parts.compact.map { |part| ensure_leading_slash(part.to_s) }.join
+          ).normalize.to_s
+        end
       end
 
       # Strips trailing `/index.html` from URLs to create pretty permalinks
@@ -47,6 +53,10 @@ module Jekyll
       end
 
       private
+
+      def cache
+        @cache ||= ::Jekyll::Cache.new("Jekyll::Filters::URLFilters")
+      end
 
       def sanitized_baseurl
         site = @context.registers[:site]
